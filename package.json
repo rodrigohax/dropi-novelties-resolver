@@ -1,0 +1,17 @@
+{
+  "name": "dropi-novelties-resolver",
+  "version": "1.0.0",
+  "description": "Automatización de resolución de novedades en Dropi",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "dotenv": "^16.0.0",
+    "playwright": "^1.59.1"
+  }
+}
