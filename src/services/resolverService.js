@@ -6,6 +6,15 @@ const { fetchWithRetry } = require('./httpClient');
 
 const sleep = (ms) => new Promise((res) => setTimeout(res, ms));
 
+// Datos reales del endpoint /distribution-companies (sin request extra).
+// incidence_solution_method "URL" = resoluble vía API; "FTP" = no soportado aún.
+const CARRIERS = {
+  1: { name: 'BLUE',    method: 'FTP', resolvable: false },
+  2: { name: 'VELOCES', method: 'FTP', resolvable: false },
+  5: { name: 'STARKEN', method: 'URL', resolvable: true  },
+  6: { name: 'WIILOG',  method: 'URL', resolvable: false }, // URL pero aún no habilitado
+};
+
 /**
  * Construye el payload para resolver una incidencia.
  */
@@ -54,11 +63,30 @@ async function resolveAll(orders) {
   const success = [];
   const failed = [];
 
+  // Filtrar por transportadoras resolvibles y loguear las omitidas
+  const skipped = orders.filter((o) => !CARRIERS[o.distribution_company_id]?.resolvable);
+  const toResolve = orders.filter((o) => CARRIERS[o.distribution_company_id]?.resolvable);
+
+  if (skipped.length) {
+    const summary = skipped.reduce((acc, o) => {
+      const name = CARRIERS[o.distribution_company_id]?.name ?? `id:${o.distribution_company_id}`;
+      acc[name] = (acc[name] ?? 0) + 1;
+      return acc;
+    }, {});
+    console.log(`[Resolver] Omitidos ${skipped.length} pedidos (no soportados aún):`);
+    Object.entries(summary).forEach(([name, count]) => {
+      const carrier = Object.values(CARRIERS).find((c) => c.name === name);
+      console.log(`  - ${name} (method: ${carrier?.method ?? '?'}): ${count} pedidos`);
+    });
+  }
+
+  console.log(`[Resolver] Procesando ${toResolve.length} pedidos STARKEN...`);
+
   // Dividir en lotes de CONCURRENCY
-  for (let i = 0; i < orders.length; i += config.CONCURRENCY) {
-    const batch = orders.slice(i, i + config.CONCURRENCY);
+  for (let i = 0; i < toResolve.length; i += config.CONCURRENCY) {
+    const batch = toResolve.slice(i, i + config.CONCURRENCY);
     const batchNum = Math.floor(i / config.CONCURRENCY) + 1;
-    const totalBatches = Math.ceil(orders.length / config.CONCURRENCY);
+    const totalBatches = Math.ceil(toResolve.length / config.CONCURRENCY);
 
     console.log(`[Resolver] Lote ${batchNum}/${totalBatches} — procesando ${batch.length} pedidos...`);
 
@@ -75,7 +103,7 @@ async function resolveAll(orders) {
     });
 
     // Rate limiting: esperar entre lotes (excepto el último)
-    if (i + config.CONCURRENCY < orders.length) {
+    if (i + config.CONCURRENCY < toResolve.length) {
       await sleep(config.BATCH_DELAY_MS);
     }
   }

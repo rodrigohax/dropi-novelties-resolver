@@ -10,9 +10,10 @@ function cleanPhone(raw) {
 function parseOrder(raw) {
   return {
     order_id: raw.id ?? raw.order_id ?? null,
-    direccionConfirma: raw.direccion ?? raw.address ?? raw.direccionEnvio ?? '',
+    direccionConfirma: raw.dir ?? raw.direccion ?? raw.address ?? raw.direccionEnvio ?? '',
     dirNumero: raw.dirNumero ?? raw.addressNumber ?? '',
     telefonoBaseConfirma: cleanPhone(raw.telefono ?? raw.phone ?? raw.telefonoBase ?? ''),
+    distribution_company_id: raw.distribution_company_id ?? raw.distribution_company?.id ?? null,
   };
 }
 
